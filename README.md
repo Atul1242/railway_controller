@@ -199,6 +199,9 @@ Station E ──[E-J3]──→ J3 ──[J3-F]──→ Station F
 | 🗺️ `get_segment_occupancy` | Block occupancy map | See where every train is |
 | 🧠 `get_control_suggestions` | AI-powered recommendations | Get expert guidance |
 | ⏱️ `get_delay_status` | Train delay report | Track schedule adherence |
+| 🔄 `detect_deadlocks` | Circular wait detection | Find and break deadlocked trains |
+| 🚨 `trigger_emergency` | Simulate track failure/signal malfunction | Test emergency response |
+| 📝 `get_trace` | Episode replay log | Step-by-step decision analysis |
 
 ---
 
@@ -283,10 +286,11 @@ railway_controller/
 ├── 📄 pyproject.toml         # Dependencies & project config
 ├── 📄 openenv.yaml           # OpenEnv environment spec
 ├── 📂 server/
-│   ├── 📄 app.py             # FastAPI application entry point
+│   ├── 📄 app.py             # FastAPI app + visualization + metrics
 │   ├── 📄 railway_environment.py  # Core simulation engine
 │   └── 📄 models.py          # Pydantic data models
-└── 📂 tests/                 # Test suite
+└── 📂 tests/
+    └── 📄 test_environment.py # Unit tests (20+ test cases)
 ```
 
 ---
@@ -302,8 +306,14 @@ graph TB
     D -->|Priority Queue| F[Train Dispatcher]
     D -->|Collision Check| G[Safety Monitor]
     D -->|Weather Effects| H[Disruption Engine]
+    D -->|Deadlock Detection| J[Deadlock Detector]
+    D -->|Emergency Handling| K[Emergency Manager]
+    D -->|Trace Recording| L[Episode Trace]
     E & F & G & H -->|State| I[Observation + Reward]
     I -->|Response| A
+    B -->|GET /visualize| M[Live Network Viz]
+    B -->|GET /metrics| N[Metrics Dashboard]
+    B -->|GET /trace| L
 ```
 
 ---
@@ -319,6 +329,27 @@ graph TB
 
 ---
 
+## 🧪 Testing
+
+Run the full test suite:
+```bash
+uv run python -m pytest tests/ -v
+# or
+uv run python -m unittest discover tests/ -v
+```
+
+Test coverage includes:
+- ✅ Environment reset & task switching
+- ✅ Block signaling enforcement
+- ✅ Collision detection
+- ✅ Priority ordering
+- ✅ Train hold/release mechanics
+- ✅ Grader score range validation (strictly 0 < score < 1)
+- ✅ Reward function range validation
+- ✅ Episode termination conditions
+
+---
+
 ## 📋 OpenEnv Compliance
 
 - ✅ **Environment Variables**: `API_BASE_URL`, `MODEL_NAME`, `HF_TOKEN`, `LOCAL_IMAGE_NAME`
@@ -326,6 +357,7 @@ graph TB
 - ✅ **OpenAI Client**: Uses `openai.OpenAI` for all LLM interactions
 - ✅ **Docker Ready**: Single Dockerfile for evaluator and HuggingFace Spaces
 - ✅ **`openenv validate`**: Passes `[OK] Ready for multi-mode deployment`
+- ✅ **Unit Tests**: 20+ test cases covering core simulation logic
 
 ---
 

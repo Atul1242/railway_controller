@@ -210,6 +210,40 @@ class RailwayControllerEnvironment(MCPEnvironment):
             """
             return self._get_delay_status()
         
+        @mcp.tool
+        def detect_deadlocks() -> dict:
+            """Detect potential deadlock situations in the network.
+            
+            A deadlock occurs when two or more trains are waiting for each other
+            to move, creating a circular dependency that can never resolve.
+            
+            Returns:
+                List of detected deadlocks with involved trains and segments
+            """
+            return self._detect_deadlocks()
+        
+        @mcp.tool
+        def trigger_emergency(segment_id: str, emergency_type: str = "track_failure") -> dict:
+            """Simulate an emergency event on a track segment.
+            
+            Args:
+                segment_id: The segment where the emergency occurs
+                emergency_type: Type of emergency ('track_failure', 'signal_malfunction')
+            
+            Returns:
+                Emergency details and affected trains
+            """
+            return self._trigger_emergency(segment_id, emergency_type)
+        
+        @mcp.tool
+        def get_trace() -> dict:
+            """Get the episode trace (step-by-step replay log).
+            
+            Returns:
+                Complete trace of all steps taken in the current episode
+            """
+            return self._get_trace()
+        
         super().__init__(mcp)
         
         # Initialize state
@@ -233,6 +267,12 @@ class RailwayControllerEnvironment(MCPEnvironment):
         self._weather_active: bool = False
         self._weather_speed_modifier: float = 1.0
         
+        # Trace recording
+        self._trace: List[dict] = []
+        
+        # Emergency state
+        self._disabled_segments: Set[str] = set()
+        
         # Initialize the network
         self._initialize_network()
     
@@ -248,6 +288,8 @@ class RailwayControllerEnvironment(MCPEnvironment):
         self._step_count = 0
         self._weather_active = False
         self._weather_speed_modifier = 1.0
+        self._trace = []
+        self._disabled_segments = set()
         
         if self._task_name == "basic_control":
             self._create_basic_network()
@@ -1005,6 +1047,18 @@ class RailwayControllerEnvironment(MCPEnvironment):
         result.metadata["collisions"] = self._collisions
         result.metadata["collisions_this_step"] = self._collisions_this_step
         result.metadata["weather_active"] = self._weather_active
+        result.metadata["disabled_segments"] = list(self._disabled_segments)
+        
+        # Record trace
+        self._trace.append({
+            "step": self._step_count,
+            "trains": {tid: {"segment": t.current_segment, "status": t.status.value, "delay": t.delay}
+                       for tid, t in self._trains.items()},
+            "signals": {sid: s.signal_state.value for sid, s in self._track_segments.items()},
+            "reward": reward,
+            "collisions_this_step": self._collisions_this_step,
+            "done": done,
+        })
         
         return result
     
@@ -1073,6 +1127,11 @@ class RailwayControllerEnvironment(MCPEnvironment):
                 current_seg = self._track_segments.get(train.current_segment)
                 
                 if next_seg is None or current_seg is None:
+                    continue
+                
+                # EMERGENCY: Check if next segment is disabled
+                if next_segment_id in self._disabled_segments:
+                    train.status = TrainStatus.WAITING
                     continue
                 
                 # BLOCK SIGNALING: Check if next segment is clear
@@ -1267,6 +1326,158 @@ class RailwayControllerEnvironment(MCPEnvironment):
             message=f"Task completed. {trains_arrived}/{total_trains} trains arrived, "
                     f"{self._collisions} collisions, avg delay: {avg_delay:.1f} steps"
         )
+    
+    def _detect_deadlocks(self) -> dict:
+        """Detect potential deadlock situations.
+        
+        A deadlock occurs when trains form a circular wait:
+        Train A waits for segment occupied by Train B,
+        Train B waits for segment occupied by Train A.
+        """
+        deadlocks = []
+        waiting_for: Dict[str, str] = {}  # train_id -> segment it's waiting for
+        
+        for tid, train in self._trains.items():
+            if train.status not in [TrainStatus.WAITING, TrainStatus.MOVING]:
+                continue
+            
+            route = self._train_routes.get(tid, [])
+            if train.current_segment not in route:
+                continue
+            
+            idx = route.index(train.current_segment)
+            if idx < len(route) - 1:
+                next_seg_id = route[idx + 1]
+                next_seg = self._track_segments.get(next_seg_id)
+                if next_seg and next_seg.occupied_by and next_seg.occupied_by != tid:
+                    waiting_for[tid] = next_seg.occupied_by
+        
+        # Detect cycles in the waiting graph
+        visited = set()
+        for start_tid in waiting_for:
+            if start_tid in visited:
+                continue
+            
+            chain = []
+            current = start_tid
+            chain_set = set()
+            
+            while current and current not in chain_set:
+                chain.append(current)
+                chain_set.add(current)
+                current = waiting_for.get(current)
+            
+            if current and current in chain_set:
+                # Found a cycle — extract it
+                cycle_start = chain.index(current)
+                cycle = chain[cycle_start:]
+                
+                deadlock_info = {
+                    "trains": cycle,
+                    "segments": [],
+                    "severity": "critical" if len(cycle) > 2 else "warning",
+                    "recommendation": f"Hold train {cycle[-1]} to break the deadlock",
+                }
+                
+                for t in cycle:
+                    deadlock_info["segments"].append(self._trains[t].current_segment)
+                
+                deadlocks.append(deadlock_info)
+                visited.update(cycle)
+        
+        return {
+            "deadlocks_found": len(deadlocks),
+            "deadlocks": deadlocks,
+            "total_waiting_trains": sum(1 for t in self._trains.values()
+                                        if t.status == TrainStatus.WAITING),
+        }
+    
+    def _trigger_emergency(self, segment_id: str, emergency_type: str = "track_failure") -> dict:
+        """Handle an emergency event on a track segment.
+        
+        track_failure: Disables the segment — no trains can enter until cleared.
+        signal_malfunction: Sets the segment signal to RED and locks it.
+        """
+        if segment_id not in self._track_segments:
+            return {
+                "success": False,
+                "error": f"Unknown segment: {segment_id}",
+            }
+        
+        seg = self._track_segments[segment_id]
+        affected_trains = []
+        
+        if emergency_type == "track_failure":
+            self._disabled_segments.add(segment_id)
+            seg.signal_state = SignalState.RED
+            
+            # Check if any train is ON the failed segment
+            if seg.occupied_by:
+                train = self._trains.get(seg.occupied_by)
+                if train:
+                    train.status = TrainStatus.WAITING
+                    affected_trains.append(seg.occupied_by)
+            
+            # Find trains heading toward this segment
+            for tid, route in self._train_routes.items():
+                if segment_id in route:
+                    train = self._trains.get(tid)
+                    if train and train.current_segment != segment_id:
+                        idx = route.index(segment_id)
+                        curr_idx = route.index(train.current_segment) if train.current_segment in route else -1
+                        if curr_idx >= 0 and curr_idx < idx:
+                            affected_trains.append(tid)
+            
+            return {
+                "success": True,
+                "emergency_type": "track_failure",
+                "segment": segment_id,
+                "status": "disabled",
+                "affected_trains": list(set(affected_trains)),
+                "recommendation": f"Reroute affected trains or clear the emergency with trigger_emergency('{segment_id}', 'clear')",
+            }
+        
+        elif emergency_type == "signal_malfunction":
+            seg.signal_state = SignalState.RED
+            return {
+                "success": True,
+                "emergency_type": "signal_malfunction",
+                "segment": segment_id,
+                "signal_locked": "red",
+                "recommendation": "Manually set signal back to green when safe",
+            }
+        
+        elif emergency_type == "clear":
+            self._disabled_segments.discard(segment_id)
+            seg.signal_state = SignalState.GREEN
+            return {
+                "success": True,
+                "emergency_type": "cleared",
+                "segment": segment_id,
+                "status": "operational",
+            }
+        
+        return {
+            "success": False,
+            "error": f"Unknown emergency type: {emergency_type}. Use 'track_failure', 'signal_malfunction', or 'clear'.",
+        }
+    
+    def _get_trace(self) -> dict:
+        """Return the episode trace for replay."""
+        return {
+            "task_name": self._task_name,
+            "episode_id": self._state.episode_id,
+            "total_steps": len(self._trace),
+            "max_steps": self._max_steps,
+            "trace": self._trace,
+            "summary": {
+                "total_collisions": self._collisions,
+                "trains_arrived": sum(1 for t in self._trains.values()
+                                      if t.status in [TrainStatus.ARRIVED, TrainStatus.DELAYED]),
+                "total_trains": len(self._trains),
+                "disabled_segments": list(self._disabled_segments),
+            },
+        }
     
     @property
     def state(self) -> State:
