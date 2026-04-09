@@ -62,7 +62,7 @@ class BasicControlGrader(BaseGrader):
         delay_penalty = min(avg_delay * 0.03, 0.1)
         efficiency_bonus = 0.1 - delay_penalty
         
-        score = max(0.0, min(1.0, arrival_score + safety_bonus + efficiency_bonus))
+        score = max(0.001, min(0.999, arrival_score + safety_bonus + efficiency_bonus))
         
         return TaskResult(
             task_name="basic_control",
@@ -122,7 +122,7 @@ class JunctionManagementGrader(BaseGrader):
         delay_penalty = min(total_delay * 0.02, 0.15)
         efficiency_score = 0.15 - delay_penalty
         
-        score = max(0.0, min(1.0, arrival_score + safety_score + priority_bonus + efficiency_score))
+        score = max(0.001, min(0.999, arrival_score + safety_score + priority_bonus + efficiency_score))
         
         return TaskResult(
             task_name="junction_management",
@@ -194,7 +194,7 @@ class RushHourGrader(BaseGrader):
         delay_penalty = min(total_delay * 0.02, 0.15)
         efficiency_score = 0.15 - delay_penalty
         
-        score = max(0.0, min(1.0, arrival_score + safety_score + priority_bonus + efficiency_score))
+        score = max(0.001, min(0.999, arrival_score + safety_score + priority_bonus + efficiency_score))
         
         # Build detailed message
         hs_status = "on-time" if hs_delay == 0 else f"{hs_delay:.0f} steps late"
@@ -265,7 +265,7 @@ class ExpressPriorityGrader(BaseGrader):
         delay_penalty = min(total_delay * 0.03, 0.10)
         efficiency_score = 0.10 - delay_penalty
         
-        score = max(0.0, min(1.0, arrival_score + safety_score + priority_bonus + efficiency_score))
+        score = max(0.001, min(0.999, arrival_score + safety_score + priority_bonus + efficiency_score))
         
         hs_status = "on-time" if hs_delay == 0 else f"{hs_delay:.0f} steps late"
         

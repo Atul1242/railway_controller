@@ -1211,7 +1211,7 @@ class RailwayControllerEnvironment(MCPEnvironment):
         waiting = sum(1 for t in self._trains.values() if t.status == TrainStatus.WAITING)
         reward -= 0.01 * waiting
         
-        return max(0.0, min(1.0, reward + 0.5))  # Normalize to [0, 1]
+        return max(0.001, min(0.999, reward + 0.5))  # Normalize to (0, 1) strictly
     
     def _is_done(self) -> bool:
         """Check if episode is done."""
