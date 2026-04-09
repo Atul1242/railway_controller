@@ -329,14 +329,6 @@ graph TB
 
 ---
 
-## 🏆 Hackathon Submission
-
-**Event:** Meta PyTorch Hackathon × Scaler School of Technology  
-**Track:** OpenEnv — Build AI Environments  
-**Team:** Curiosity  
-
----
-
 <div align="center">
 
 ### Built with ❤️ for safer railways
