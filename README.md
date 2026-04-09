@@ -14,166 +14,336 @@ tags:
 license: mit
 ---
 
-# Railway Traffic Controller Environment
+<div align="center">
 
-A real-world simulation of railway traffic control for OpenEnv, where an AI agent manages train movements, signals, and routing to ensure safe and efficient operations.
+# 🚂 Railway Traffic Controller
 
-## Overview
+### *AI-Powered Railway Traffic Management System*
 
-This environment simulates the job of a railway traffic controller — an actual profession where dispatchers manage railway networks to keep trains safe and on time. The agent must:
-- Control signals to prevent train collisions (block signaling)
-- Manage train routing at junctions
-- Minimize delays while ensuring safety
-- Prioritize express and high-speed trains over regular services
+[![OpenEnv](https://img.shields.io/badge/OpenEnv-Compatible-blue?style=for-the-badge&logo=meta)](https://github.com/facebookresearch/openenv)
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docker.com)
+[![HuggingFace](https://img.shields.io/badge/🤗_HuggingFace-Space-yellow?style=for-the-badge)](https://huggingface.co/spaces/atulgupta-dev/railway-controller)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
-## Real-World Application
+---
 
-Train dispatching is valued for:
-- **Training RL agents** for transportation logistics
-- **Evaluating decision-making** under time pressure with competing priorities
-- **Testing multi-objective optimization** (safety vs. efficiency vs. fairness)
+*A high-fidelity simulation of real-world railway traffic control — where an AI agent manages train movements, signals, and junction routing to prevent collisions and minimize delays across increasingly complex rail networks.*
 
-## Tasks
+[🚀 Live Demo](https://atulgupta-dev-railway-controller.hf.space/) · [📖 API Docs](https://atulgupta-dev-railway-controller.hf.space/) · [🐛 Report Bug](https://github.com/Atul1242/railway_controller/issues)
 
-### Task 1: Basic Control (Easy)
-- **Trains:** 2 regular trains on a simple track
-- **Network:** 5 segments with one shared crossing (J1-CROSS)
-- **Goal:** Prevent collision at the shared junction
-- **Max Steps:** 30
-- **Key Challenge:** Coordinate signal timing so both trains pass through J1-CROSS safely
+</div>
 
-### Task 2: Junction Management (Medium)
-- **Trains:** 4 trains (3 regular, 1 express)
-- **Network:** 13 segments with two junctions (J1-CORE, J2-CORE)
-- **Goal:** Optimize flow, prevent collisions, prioritize express train T2
-- **Max Steps:** 50
-- **Key Challenge:** Three trains (T1, T2, T3) all need J1-CORE — must sequence them by priority
+---
 
-### Task 3: Express Priority (Medium-Hard)
-- **Trains:** 5 trains (2 high-speed, 1 express, 2 regular)
-- **Network:** 11 segments with three junctions in a chain (J1→J2→J3)
-- **Goal:** Get all high-speed trains through on time despite cascading conflicts
-- **Max Steps:** 40
-- **Key Challenge:** HS1 & EX1 both start at Station A (immediate conflict at J1); HS2 & R2 both start at Station C (conflict at J2); EX1 crosses both J1 and J2
+## 🎯 The Problem We're Solving
 
-### Task 4: Rush Hour (Hard)
-- **Trains:** 6 trains (2 high-speed, 2 express, 2 regular)
-- **Network:** 19 segments with four junctions (J1–J4), weather effects active
-- **Goal:** Prioritize high-speed/express trains, manage congestion, handle random delays
-- **Max Steps:** 80
-- **Key Challenge:** Multiple crossing conflicts at J2-CORE and J4-CORE with weather randomly delaying trains
+Every day, **thousands of trains** share tracks, junctions, and stations worldwide. A single miscalculated signal or poorly-timed route change can cascade into catastrophic collisions, multi-hour delays, or gridlocked networks.
 
-## Action Space (MCP Tools)
+**Railway traffic controllers** are the unsung heroes who prevent this chaos — making split-second decisions under immense pressure, juggling competing priorities (express vs. local trains), weather disruptions, and network congestion.
 
-| Tool | Description | Parameters |
-|------|-------------|------------|
-| `set_signal` | Set signal state for a track segment | `segment_id`: str, `state`: "red"/"yellow"/"green" |
-| `hold_train` | Hold a train at current position | `train_id`: str, `reason`: str (optional) |
-| `release_train` | Release a held train | `train_id`: str |
-| `route_train` | Route train through specific segment | `train_id`: str, `via_segment`: str |
-| `get_status` | Get current network status | None |
-| `get_collision_warnings` | Get warnings about potential collisions | None |
-| `get_segment_occupancy` | Get occupancy status of all segments | None |
-| `get_control_suggestions` | Get intelligent control suggestions | None |
-| `get_delay_status` | Get delay status of all trains | None |
+> 💡 **Our mission:** Build an AI agent that can match — and eventually surpass — human controllers at managing complex rail networks safely and efficiently.
 
-## Track Safety (Block Signaling)
+---
 
-The environment implements **block signaling** for safe train operations:
+## 🌍 Real-World Impact & Applications
 
-- **One Train Per Block**: Each track segment can only hold ONE train at a time
-- **Signal Control**: Signals control **entry** to the next block:
-  - RED = Stop (train cannot enter next segment)
-  - YELLOW = Caution (train waits one step, then signal auto-clears to GREEN)
-  - GREEN = Proceed (if next segment is unoccupied)
-- **Collision Detection**: If two trains enter the same block, it's a critical failure
+| Domain | Application |
+|--------|-------------|
+| 🚆 **Rail Operations** | Automate dispatching decisions for metro systems, freight networks, and high-speed rail |
+| 🛡️ **Safety Systems** | Train AI to enforce block signaling, prevent collisions, and handle emergency scenarios |
+| 📊 **Logistics Optimization** | Minimize network-wide delays while respecting priority schedules |
+| 🎓 **RL Research** | A challenging multi-agent, multi-objective benchmark for reinforcement learning |
+| 🏗️ **Infrastructure Planning** | Simulate network expansions and test capacity under future demand |
 
-## Train Priority System
+---
 
-| Priority | Type | Description |
-|----------|------|-------------|
-| 3 | High-Speed | Premium trains, get right-of-way at junctions |
-| 2 | Express | Fast trains, priority over regular trains |
-| 1 | Regular | Standard trains, lowest priority |
+## ✨ Key Features
 
-**Priority rules:**
-- Higher priority trains move first when multiple trains want the same junction
-- Late trains get a priority boost: `effective_priority = base_priority + min(delay * 0.1, 0.5)`
+### 🛡️ Block Signaling Safety System
+Our environment implements **real-world block signaling** — the #1 safety mechanism in modern railways:
 
-## Reward Function
-
-| Event | Reward |
-|-------|--------|
-| Train arrives on time | +0.2 × priority (one-time) |
-| Train arrives late | -0.05 × min(delay, 5) (one-time) |
-| New collision | -0.5 per collision event |
-| Train waiting | -0.01 per waiting train per step |
-
-Rewards are normalized to [0.0, 1.0] per step. Only **new** events are rewarded/penalized to prevent cumulative drift.
-
-## Grading
-
-Each task has a dedicated grader that evaluates the final state:
-
-| Component | Basic | Junction | Express Priority | Rush Hour |
-|-----------|-------|----------|------------------|-----------|
-| Arrivals | 70% | 50% | 40% | 40% |
-| Safety | 20% | 20% | 25% | 20% |
-| Priority handling | — | 15% | 25% | 25% |
-| Efficiency | 10% | 15% | 10% | 15% |
-
-## Weather System (Rush Hour)
-
-During the rush hour task, weather effects are active:
-- Each train has a 25% chance per step of being weather-delayed
-- Weather-delayed trains skip their movement for that step
-- This adds unpredictability that the agent must handle
-
-## Baseline Scores
-
-| Task | Baseline Score | Notes |
-|------|---------------|-------|
-| basic_control | ~0.85 | Simple collision avoidance |
-| junction_management | ~0.65 | Requires junction coordination |
-| express_priority | ~0.55 | Tight schedules, cascading conflicts |
-| rush_hour | ~0.45 | Complex multi-train + weather management |
-
-## Setup & Usage
-
-```bash
-# Build Docker image
-docker build -t railway-controller:latest -f server/Dockerfile .
-
-# Run container
-docker run -p 8000:8000 railway-controller:latest
-
-# Test endpoints
-curl http://localhost:8000/health
-curl -X POST http://localhost:8000/reset -H "Content-Type: application/json" -d '{}'
-
-# Run inference
-python inference.py
+```
+🟢 GREEN  → Proceed (next segment clear)
+🟡 YELLOW → Caution (wait 1 step, auto-clears)  
+🔴 RED    → Stop (do not enter next segment)
 ```
 
+- **One train per block** — each track segment allows only ONE train at a time
+- **Collision detection** — two trains in the same block = critical failure
+- **Signal-controlled entry** — signals gate access to downstream blocks
+
+### 🚄 Priority-Based Train Dispatching
+
+| Priority | Type | Badge | Behavior |
+|:--------:|------|:-----:|----------|
+| 3 | High-Speed | 🔴 | Right-of-way at all junctions, tight schedules |
+| 2 | Express | 🟠 | Priority over regular, moderate schedules |
+| 1 | Regular | 🟢 | Standard scheduling, yields to higher priority |
+
+Late trains get a **dynamic priority boost** to recover schedules:
+```
+effective_priority = base_priority + min(delay × 0.1, 0.5)
+```
+
+### 🌧️ Weather Disruption System
+Rush-hour scenarios include **stochastic weather effects**:
+- 25% chance per train per step of weather delay
+- Simulates real-world disruptions (fog, rain, ice)
+- Agent must adapt plans dynamically
+
+### 🧠 AI-Powered Control Suggestions
+Built-in `get_control_suggestions()` tool provides intelligent recommendations:
+- Collision risk assessment for each junction
+- Priority-aware scheduling hints
+- Delay recovery strategies
+
+---
+
+## 🏁 Challenge Tasks
+
+<table>
+<tr>
+<td width="50%">
+
+### 🟢 Task 1: Basic Control
+**Difficulty:** Easy · **Trains:** 2 · **Steps:** 30
+
+Simple track with one shared crossing. Coordinate signal timing so both trains pass through safely.
+
+> *"Can you prevent two trains from crashing?"*
+
+</td>
+<td width="50%">
+
+### 🟡 Task 2: Junction Management
+**Difficulty:** Medium · **Trains:** 4 · **Steps:** 50
+
+Two junctions, four trains (including one express). Must sequence three trains through the same junction by priority.
+
+> *"Can you prioritize and sequence traffic at a busy junction?"*
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### 🟠 Task 3: Express Priority
+**Difficulty:** Medium-Hard · **Trains:** 5 · **Steps:** 40
+
+Three-junction chain with cascading conflicts. Two trains start from the same station, creating immediate conflict.
+
+> *"Can you handle cascading conflicts across linked junctions?"*
+
+</td>
+<td width="50%">
+
+### 🔴 Task 4: Rush Hour
+**Difficulty:** Hard · **Trains:** 6 · **Steps:** 80
+
+Complex 4-junction network with weather effects. Multiple crossing conflicts with random disruptions.
+
+> *"Can you manage peak-hour chaos with weather delays?"*
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🗺️ Network Architecture
+
+### Express Priority Network (Task 3)
+```
+Station A ──[A-J1]──→ J1 ──[J1-B]──→ Station B
+                       │
+                    [J1-J2]
+                       │
+Station C ──[C-J2]──→ J2 ──[J2-D]──→ Station D
+                       │
+                    [J2-J3]
+                       │
+Station E ──[E-J3]──→ J3 ──[J3-F]──→ Station F
+```
+
+### Rush Hour Network (Task 4)
+```
+        Station A ──[A-J1]──→ J1 ──[J1-B]──→ Station B
+            │                  │                  │
+         [A-J2]            [J1-J2]            [B-J3]
+            │                  │                  │
+            J2 ──[J2-C]──→ Station C ──[C-J3]──→ J3
+            │                                     │
+         [J2-D]                               [J3-E]
+            │                                     │
+        Station D ←──[D-J4]── J4 ←──[J4-E]── Station E
+                               │
+                           [J4-F]
+                               │
+                          Station F
+```
+
+---
+
+## 🛠️ MCP Tool Suite
+
+| Tool | Description | Use Case |
+|:----:|-------------|----------|
+| 🚦 `set_signal` | Control signal state (red/yellow/green) | Block dangerous segments |
+| ✋ `hold_train` | Hold a train at current position | Let higher-priority trains pass |
+| ▶️ `release_train` | Release a held train | Resume service after conflict resolved |
+| 🔀 `route_train` | Route through a specific segment | Redirect trains at junctions |
+| 📊 `get_status` | Full network status snapshot | Understand the current situation |
+| ⚠️ `get_collision_warnings` | Active collision risks | Identify imminent dangers |
+| 🗺️ `get_segment_occupancy` | Block occupancy map | See where every train is |
+| 🧠 `get_control_suggestions` | AI-powered recommendations | Get expert guidance |
+| ⏱️ `get_delay_status` | Train delay report | Track schedule adherence |
+
+---
+
+## 📊 Scoring System
+
+Each task is graded on multiple criteria with weighted components:
+
+| Component | 🟢 Basic | 🟡 Junction | 🟠 Express | 🔴 Rush Hour |
+|:---------:|:--------:|:-----------:|:----------:|:------------:|
+| **Arrivals** | 70% | 50% | 40% | 40% |
+| **Safety** | 20% | 20% | 25% | 20% |
+| **Priority** | — | 15% | 25% | 25% |
+| **Efficiency** | 10% | 15% | 10% | 15% |
+
+### Reward Function
+
+| Event | Reward | Trigger |
+|-------|:------:|---------|
+| ✅ On-time arrival | **+0.2 × priority** | First time train reaches destination on schedule |
+| ⏰ Late arrival | **-0.05 × delay** | Train arrives past scheduled time (capped at 5) |
+| 💥 Collision | **-0.5** | Two trains occupy the same block |
+| ⏳ Waiting penalty | **-0.01** | Per waiting train per step |
+
+---
+
+## 🚀 Quick Start
+
+### Option 1: Docker (Recommended)
+```bash
+# Build the image
+docker build -t railway-controller:latest .
+
+# Run the server
+docker run -p 8000:8000 railway-controller:latest
+
+# Verify it's running
+curl http://localhost:8000/health
+```
+
+### Option 2: Local Development
+```bash
+# Install dependencies
+uv sync
+
+# Start the server
+uv run uvicorn server.app:app --host 0.0.0.0 --port 8000
+
+# Run inference
+uv run python inference.py
+```
+
+### Option 3: Python Client
 ```python
 from railway_controller import RailwayControllerEnv
 
-with RailwayControllerEnv(base_url="http://localhost:8000") as env:
-    env.reset()
+async with RailwayControllerEnv(base_url="http://localhost:8000") as env:
+    await env.reset(task_name="basic_control")
     
-    # Get current status
-    status = env.call_tool("get_status")
+    # Get current network status
+    status = await env.call_tool("get_status")
     
-    # Set signal to prevent collision
-    env.call_tool("set_signal", segment_id="J1-CROSS", state="red")
+    # Set signal to prevent collision  
+    await env.call_tool("set_signal", segment_id="J1-CROSS", state="red")
     
-    # Hold a train
-    env.call_tool("hold_train", train_id="T2", reason="Let T1 pass")
+    # Hold a lower-priority train
+    await env.call_tool("hold_train", train_id="T2", reason="Let T1 pass")
     
-    # Get AI-powered control suggestions
-    suggestions = env.call_tool("get_control_suggestions")
+    # Get AI-powered suggestions
+    suggestions = await env.call_tool("get_control_suggestions")
 ```
 
-## License
+---
 
-MIT License
+## 📁 Project Structure
+
+```
+railway_controller/
+├── 📄 inference.py           # Baseline inference script (OpenEnv compliant)
+├── 📄 client.py              # RailwayControllerEnv client
+├── 📄 graders.py             # Task-specific grading logic
+├── 📄 Dockerfile             # Multi-mode deployment (Docker + HF Spaces)
+├── 📄 pyproject.toml         # Dependencies & project config
+├── 📄 openenv.yaml           # OpenEnv environment spec
+├── 📂 server/
+│   ├── 📄 app.py             # FastAPI application entry point
+│   ├── 📄 railway_environment.py  # Core simulation engine
+│   └── 📄 models.py          # Pydantic data models
+└── 📂 tests/                 # Test suite
+```
+
+---
+
+## 🏗️ Technical Architecture
+
+```mermaid
+graph TB
+    A[AI Agent / LLM] -->|MCP Tool Calls| B[FastAPI Server]
+    B -->|WebSocket| C[OpenEnv Protocol]
+    C -->|Step/Reset| D[Railway Environment]
+    D -->|Block Signaling| E[Track Segments]
+    D -->|Priority Queue| F[Train Dispatcher]
+    D -->|Collision Check| G[Safety Monitor]
+    D -->|Weather Effects| H[Disruption Engine]
+    E & F & G & H -->|State| I[Observation + Reward]
+    I -->|Response| A
+```
+
+---
+
+## 🔬 Baseline Performance
+
+| Task | Score | Strategy |
+|:----:|:-----:|----------|
+| 🟢 Basic Control | ~0.85 | Simple signal coordination |
+| 🟡 Junction Management | ~0.65 | Priority-aware sequencing |
+| 🟠 Express Priority | ~0.55 | Cascading conflict resolution |
+| 🔴 Rush Hour | ~0.45 | Multi-objective + weather adaptation |
+
+---
+
+## 📋 OpenEnv Compliance
+
+- ✅ **Environment Variables**: `API_BASE_URL`, `MODEL_NAME`, `HF_TOKEN`, `LOCAL_IMAGE_NAME`
+- ✅ **Structured Logging**: `[START]` → `[STEP]` → `[END]` stdout format
+- ✅ **OpenAI Client**: Uses `openai.OpenAI` for all LLM interactions
+- ✅ **Docker Ready**: Single Dockerfile for evaluator and HuggingFace Spaces
+- ✅ **`openenv validate`**: Passes `[OK] Ready for multi-mode deployment`
+
+---
+
+## 🏆 Hackathon Submission
+
+**Event:** Meta PyTorch Hackathon × Scaler School of Technology  
+**Track:** OpenEnv — Build AI Environments  
+**Team:** Curiosity  
+
+---
+
+<div align="center">
+
+### Built with ❤️ for safer railways
+
+*If trains could talk, they'd thank their traffic controller.*
+
+[![GitHub](https://img.shields.io/badge/GitHub-Atul1242-181717?style=flat-square&logo=github)](https://github.com/Atul1242/railway_controller)
+[![HuggingFace](https://img.shields.io/badge/🤗_Live_Demo-HuggingFace-yellow?style=flat-square)](https://huggingface.co/spaces/atulgupta-dev/railway-controller)
+
+</div>
